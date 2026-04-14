@@ -1,19 +1,19 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Apr 13 14:55:21 2026
-
-@author: lolip
-"""
-
 import streamlit as st
 import sqlite3
 import pandas as pd
 import numpy as np
+import hashlib
 from sklearn.ensemble import RandomForestRegressor
-from openai import OpenAI
+from reportlab.platypus import SimpleDocTemplate, Paragraph
+from reportlab.lib.styles import getSampleStyleSheet
 
 # =========================
-# 1. DATABASE (MULTI-USER)
+# CONFIG
+# =========================
+st.set_page_config(page_title="FCMat AI SaaS", layout="wide")
+
+# =========================
+# DATABASE
 # =========================
 conn = sqlite3.connect("fcmat.db", check_same_thread=False)
 c = conn.cursor()
@@ -36,28 +36,60 @@ CREATE TABLE IF NOT EXISTS projects (
 conn.commit()
 
 # =========================
-# 2. AI BRAIN (REAL)
+# SECURITY
 # =========================
-client = OpenAI(api_key="YOUR_API_KEY")
+def hash_password(password):
+    return hashlib.sha256(password.encode()).hexdigest()
 
+# =========================
+# AI (DEMO MODE — NO OPENAI)
+# =========================
 def ai_brain(prompt):
-    res = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "You are a civil engineering PhD research assistant."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return res.choices[0].message.content
+    return f"""
+🔬 AI Research Analysis
+
+Idea:
+{prompt}
+
+Approach:
+- Use experimental mix design
+- Apply regression-based ML models
+- Optimize cement-water ratio
+
+Materials:
+- Cement, water, aggregates
+- Additives: fly ash, silica fume
+
+Expected Outcome:
+- Better strength prediction
+- Improved sustainability
+
+⚠ Demo Mode (No API key required)
+"""
 
 # =========================
-# 3. LOGIN SYSTEM
+# PDF
 # =========================
-st.set_page_config(page_title="FCMat AI SaaS", layout="wide")
+def generate_pdf(text, filename="report.pdf"):
+    doc = SimpleDocTemplate(filename)
+    styles = getSampleStyleSheet()
 
-st.title("🏭 FCMat AI — SaaS + PhD Platform")
+    content = []
+    for line in text.split("\n"):
+        content.append(Paragraph(line, styles["Normal"]))
 
-menu = st.sidebar.selectbox("Menu", ["Login", "Register", "Dashboard"])
+    doc.build(content)
+    return filename
+
+# =========================
+# UI
+# =========================
+st.title("🏭 FCMat AI — SaaS Platform")
+
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+menu = st.sidebar.radio("Navigation", ["Login", "Register", "Dashboard", "Analytics"])
 
 # =========================
 # REGISTER
@@ -69,9 +101,12 @@ if menu == "Register":
     p = st.text_input("Password", type="password")
 
     if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-        conn.commit()
-        st.success("Account created!")
+        if u and p:
+            c.execute("INSERT INTO users VALUES (?,?)", (u, hash_password(p)))
+            conn.commit()
+            st.success("Account created!")
+        else:
+            st.warning("Fill all fields")
 
 # =========================
 # LOGIN
@@ -79,25 +114,25 @@ if menu == "Register":
 if menu == "Login":
     st.subheader("Login")
 
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
 
     if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, hash_password(p)))
         user = c.fetchone()
 
         if user:
-            st.session_state["user"] = username
+            st.session_state["user"] = u
             st.success("Login successful")
         else:
             st.error("Wrong credentials")
 
 # =========================
-# DASHBOARD (MAIN SYSTEM)
+# DASHBOARD
 # =========================
 if menu == "Dashboard":
 
-    if "user" not in st.session_state:
+    if st.session_state["user"] is None:
         st.warning("Please login first")
         st.stop()
 
@@ -105,20 +140,14 @@ if menu == "Dashboard":
 
     idea = st.text_area("Enter Research Idea")
 
-    if st.button("Run Full AI Simulation"):
+    if st.button("Run AI + Simulation"):
 
-        # =========================
-        # AI BRAIN
-        # =========================
-        st.subheader("🧠 AI Brain Result")
+        # AI OUTPUT
         ai_result = ai_brain(idea)
+        st.subheader("🧠 AI Result")
         st.write(ai_result)
 
-        # =========================
-        # DATASET (SYNTHETIC + ML)
-        # =========================
-        st.subheader("🧪 ML Simulation")
-
+        # ML SIMULATION
         df = pd.DataFrame({
             "cement": np.random.randint(200, 500, 200),
             "water": np.random.randint(100, 300, 200),
@@ -132,28 +161,45 @@ if menu == "Dashboard":
 
         model = RandomForestRegressor()
         model.fit(X, y)
-
         pred = model.predict(X)
 
-        error = np.mean(abs(y - pred))
+        error = np.mean(np.abs(y - pred))
 
-        st.write("MAE:", error)
+        st.metric("Model Error", round(error, 4))
 
-        # =========================
         # SAVE PROJECT
-        # =========================
-        result_text = f"AI:{ai_result[:100]} | MAE:{error}"
+        result = f"{ai_result[:120]} | MAE {error:.4f}"
 
         c.execute(
             "INSERT INTO projects (username, idea, result) VALUES (?,?,?)",
-            (st.session_state["user"], idea, result_text)
+            (st.session_state["user"], idea, result)
         )
         conn.commit()
 
-        st.success("Project saved!")
+        # PDF DOWNLOAD
+        pdf = generate_pdf(ai_result)
 
-        # =========================
-        # OUTPUT
-        # =========================
-        st.subheader("📊 Dataset Preview")
+        with open(pdf, "rb") as f:
+            st.download_button("📄 Download Report", f, file_name="report.pdf")
+
         st.dataframe(df.head())
+
+# =========================
+# ANALYTICS
+# =========================
+if menu == "Analytics":
+
+    if st.session_state["user"] is None:
+        st.warning("Login required")
+        st.stop()
+
+    st.subheader("📊 Your Research Analytics")
+
+    c.execute("SELECT idea FROM projects WHERE username=?", (st.session_state["user"],))
+    data = c.fetchall()
+
+    st.metric("Total Projects", len(data))
+
+    lengths = [len(i[0]) for i in data] if data else [0]
+
+    st.line_chart(lengths)
