@@ -64,7 +64,7 @@ AI Engineering Analysis:
 """
 
 # =========================
-# UI
+# TITLE
 # =========================
 st.title("🏭 FCMat AI — Full Engineering Platform")
 
@@ -122,6 +122,7 @@ if menu == "Dashboard":
 
     if st.button("Run Simulation"):
 
+        # AI OUTPUT
         st.subheader("🧠 AI Output")
         st.write(ai_brain(idea))
 
@@ -147,39 +148,46 @@ if menu == "Dashboard":
         X = df.drop("strength", axis=1)
         y = df["strength"]
 
-        model = RandomForestRegressor(n_estimators=400, max_depth=15, random_state=42)
+        model = RandomForestRegressor(
+            n_estimators=400,
+            max_depth=15,
+            random_state=42
+        )
         model.fit(X, y)
 
+        # prediction
         inp = np.array([[cement, water, age, fly_ash, silica_fume]])
         pred = model.predict(inp)[0]
 
         st.subheader("📊 Prediction Result")
         st.success(f"Concrete Strength = {pred:.2f}")
 
-        # =========================
-        # INSIGHT
-        # =========================
         if pred > 40:
-            st.info("High-strength concrete (high-rise structures)")
+            st.info("High-strength concrete")
         elif pred > 25:
             st.warning("Medium strength concrete")
         else:
             st.error("Low strength — optimize mix")
 
         # =========================
-        # SAVE
+        # FIXED FEATURE IMPORTANCE GRAPH
         # =========================
+        st.subheader("📊 Feature Importance (Corrected)")
+
+        importance = model.feature_importances_
+        features = X.columns
+
+        fig, ax = plt.subplots()
+        ax.bar(features, importance, color="skyblue")
+        ax.set_ylabel("Importance")
+        ax.set_title("Feature Impact on Strength")
+
+        st.pyplot(fig)
+
+        # SAVE
         c.execute("INSERT INTO projects VALUES (NULL,?,?,?)",
                   (st.session_state["user"], idea, str(pred)))
         conn.commit()
-
-        # =========================
-        # GRAPH
-        # =========================
-        st.subheader("📊 Feature Importance")
-        fig, ax = plt.subplots()
-        ax.bar(X.columns, model.feature_importances_)
-        st.pyplot(fig)
 
 # =========================
 # OPTIMIZER
@@ -191,7 +199,7 @@ if menu == "Optimizer":
     best = 0
     best_mix = None
 
-    for i in range(300):
+    for i in range(400):
 
         cement = np.random.randint(300, 550)
         water = np.random.randint(100, 250)
