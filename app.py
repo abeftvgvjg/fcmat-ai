@@ -47,28 +47,28 @@ if "user" not in st.session_state:
     st.session_state["user"] = None
 
 # =========================
-# AI DEMO
+# AI (DEMO)
 # =========================
 def ai_brain(prompt):
     return f"""
-AI Research Analysis:
+AI Engineering Analysis:
 
 {prompt}
 
-- Optimize concrete mix design
-- Use ML regression modeling
-- Improve sustainability
-- Structural engineering application
+- Optimize mix design
+- Reduce water-cement ratio
+- Improve durability
+- Apply ML regression
 
 (Demo Mode)
 """
 
 # =========================
-# HEADER
+# UI
 # =========================
-st.title("🏭 FCMat AI — Advanced Concrete Intelligence System")
+st.title("🏭 FCMat AI — Full Engineering Platform")
 
-menu = st.sidebar.radio("Menu", ["Login", "Register", "Dashboard", "Analytics", "Optimizer"])
+menu = st.sidebar.radio("Menu", ["Login", "Register", "Dashboard", "Optimizer", "Analytics"])
 
 # =========================
 # REGISTER
@@ -112,69 +112,113 @@ if menu == "Dashboard":
 
     st.success(f"Welcome {st.session_state['user']} 🚀")
 
-    cement = st.slider("Cement", 200, 500, 350)
+    cement = st.slider("Cement", 200, 550, 350)
     water = st.slider("Water", 100, 300, 180)
     age = st.slider("Age", 7, 90, 28)
-    fly_ash = st.slider("Fly Ash", 0, 100, 30)
-    silica_fume = st.slider("Silica Fume", 0, 30, 10)
+    fly_ash = st.slider("Fly Ash", 0, 120, 30)
+    silica_fume = st.slider("Silica Fume", 0, 40, 10)
 
     idea = st.text_area("Research Idea")
 
-    if st.button("Run AI + ML"):
+    if st.button("Run Simulation"):
 
-        # AI
         st.subheader("🧠 AI Output")
         st.write(ai_brain(idea))
 
-        # DATASET
+        # =========================
+        # REALISTIC DATASET
+        # =========================
         df = pd.DataFrame({
-            "cement": np.random.uniform(200, 500, 400),
-            "water": np.random.uniform(120, 280, 400),
-            "age": np.random.choice([7, 14, 28, 56, 90], 400),
-            "fly_ash": np.random.uniform(0, 100, 400),
-            "silica_fume": np.random.uniform(0, 30, 400)
+            "cement": np.random.randint(200, 550, 500),
+            "water": np.random.randint(100, 300, 500),
+            "age": np.random.choice([7, 14, 28, 56, 90], 500),
+            "fly_ash": np.random.randint(0, 120, 500),
+            "silica_fume": np.random.randint(0, 40, 500)
         })
 
         df["strength"] = (
-            (0.55 * df["cement"]) / (df["water"] + 1)
-            + 0.25 * df["age"]
-            + 0.3 * df["fly_ash"]
-            + 0.9 * df["silica_fume"]
+            (0.6 * df["cement"]) / (df["water"] + 1)
+            + (0.3 * df["age"])
+            + (0.4 * df["fly_ash"])
+            + (1.0 * df["silica_fume"])
+            + np.random.normal(0, 2, 500)
         )
 
         X = df.drop("strength", axis=1)
         y = df["strength"]
 
-        model = RandomForestRegressor(n_estimators=300, max_depth=12)
+        model = RandomForestRegressor(n_estimators=400, max_depth=15, random_state=42)
         model.fit(X, y)
 
-        # prediction
         inp = np.array([[cement, water, age, fly_ash, silica_fume]])
         pred = model.predict(inp)[0]
 
-        st.subheader("📊 Prediction")
-        st.success(f"Strength = {pred:.2f}")
+        st.subheader("📊 Prediction Result")
+        st.success(f"Concrete Strength = {pred:.2f}")
 
-        # insight
+        # =========================
+        # INSIGHT
+        # =========================
         if pred > 40:
-            st.info("High strength concrete (high-rise structures)")
+            st.info("High-strength concrete (high-rise structures)")
         elif pred > 25:
             st.warning("Medium strength concrete")
         else:
             st.error("Low strength — optimize mix")
 
+        # =========================
         # SAVE
+        # =========================
         c.execute("INSERT INTO projects VALUES (NULL,?,?,?)",
                   (st.session_state["user"], idea, str(pred)))
         conn.commit()
 
+        # =========================
         # GRAPH
-        st.subheader("📊 Feature Impact")
+        # =========================
+        st.subheader("📊 Feature Importance")
         fig, ax = plt.subplots()
         ax.bar(X.columns, model.feature_importances_)
         st.pyplot(fig)
 
-        st.dataframe(df.head())
+# =========================
+# OPTIMIZER
+# =========================
+if menu == "Optimizer":
+
+    st.subheader("🔥 Auto Mix Optimizer")
+
+    best = 0
+    best_mix = None
+
+    for i in range(300):
+
+        cement = np.random.randint(300, 550)
+        water = np.random.randint(100, 250)
+        age = np.random.choice([28, 56, 90])
+        fly_ash = np.random.randint(20, 120)
+        silica_fume = np.random.randint(5, 40)
+
+        strength = (
+            (0.6 * cement) / (water + 1)
+            + (0.3 * age)
+            + (0.4 * fly_ash)
+            + (1.0 * silica_fume)
+        )
+
+        if strength > best:
+            best = strength
+            best_mix = (cement, water, age, fly_ash, silica_fume)
+
+    st.success(f"Best Strength: {best:.2f}")
+
+    st.write({
+        "cement": best_mix[0],
+        "water": best_mix[1],
+        "age": best_mix[2],
+        "fly_ash": best_mix[3],
+        "silica_fume": best_mix[4]
+    })
 
 # =========================
 # ANALYTICS
@@ -192,45 +236,3 @@ if menu == "Analytics":
 
     lengths = [len(i[0]) for i in data] if data else [0]
     st.line_chart(lengths)
-
-# =========================
-# OPTIMIZER (NEW FEATURE)
-# =========================
-if menu == "Optimizer":
-
-    st.subheader("🔥 Auto Concrete Optimizer")
-
-    st.write("Finding best mix automatically...")
-
-    best_strength = 0
-    best_mix = None
-
-    for i in range(200):
-
-        cement = np.random.uniform(300, 500)
-        water = np.random.uniform(120, 250)
-        age = np.random.choice([28, 56, 90])
-        fly_ash = np.random.uniform(20, 100)
-        silica_fume = np.random.uniform(5, 30)
-
-        strength = (
-            (0.55 * cement) / (water + 1)
-            + 0.25 * age
-            + 0.3 * fly_ash
-            + 0.9 * silica_fume
-        )
-
-        if strength > best_strength:
-            best_strength = strength
-            best_mix = (cement, water, age, fly_ash, silica_fume)
-
-    st.success(f"Best Strength Found: {best_strength:.2f}")
-
-    st.write("Best Mix:")
-    st.write({
-        "cement": best_mix[0],
-        "water": best_mix[1],
-        "age": best_mix[2],
-        "fly_ash": best_mix[3],
-        "silica_fume": best_mix[4],
-    })
