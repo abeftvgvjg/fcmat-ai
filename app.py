@@ -40,28 +40,34 @@ def hash_password(password):
     return hashlib.sha256(password.encode()).hexdigest()
 
 # =========================
-# AI DEMO
+# LOGIN STATE
+# =========================
+if "user" not in st.session_state:
+    st.session_state["user"] = None
+
+# =========================
+# AI TEXT ENGINE (DEMO)
 # =========================
 def ai_brain(prompt):
     return f"""
-AI Analysis:
+AI Research Analysis:
 
 {prompt}
 
-- Suggested: optimize mix design
-- Use ML regression for prediction
+Suggested Approach:
+- Optimize concrete mix design
+- Use machine learning regression
 - Improve sustainability
+- Study water-cement ratio effects
 
 (Demo Mode)
 """
 
 # =========================
-# UI
+# UI HEADER
 # =========================
-st.title("🏭 FCMat AI Platform")
-
-if "user" not in st.session_state:
-    st.session_state["user"] = None
+st.title("🏭 FCMat AI — Smart Concrete & Materials Platform")
+st.write("AI + ML-based Civil Engineering Research System")
 
 menu = st.sidebar.radio("Menu", ["Login", "Register", "Dashboard", "Analytics"])
 
@@ -112,42 +118,104 @@ if menu == "Dashboard":
 
     st.success(f"Welcome {st.session_state['user']} 🚀")
 
-    idea = st.text_area("Enter Research Idea")
+    st.subheader("🧪 Concrete Mix Input")
 
-    if st.button("Run Simulation"):
+    cement = st.slider("Cement (kg/m³)", 200, 500, 350)
+    water = st.slider("Water (kg/m³)", 100, 280, 180)
+    age = st.slider("Curing Age (days)", 7, 90, 28)
+    fly_ash = st.slider("Fly Ash", 0, 100, 30)
+    silica_fume = st.slider("Silica Fume", 0, 30, 10)
 
+    idea = st.text_area("Research Idea")
+
+    if st.button("Run AI + ML Simulation"):
+
+        # =========================
         # AI OUTPUT
+        # =========================
         ai_result = ai_brain(idea)
-        st.subheader("AI Result")
+
+        st.subheader("🧠 AI Research Output")
         st.write(ai_result)
 
-        # ML SIMULATION
+        # =========================
+        # REALISTIC DATASET
+        # =========================
         df = pd.DataFrame({
-            "cement": np.random.randint(200, 500, 200),
-            "water": np.random.randint(100, 300, 200),
-            "age": np.random.randint(7, 90, 200)
+            "cement": np.random.uniform(200, 500, 300),
+            "water": np.random.uniform(120, 280, 300),
+            "age": np.random.choice([7, 14, 28, 56, 90], 300),
+            "fly_ash": np.random.uniform(0, 100, 300),
+            "silica_fume": np.random.uniform(0, 30, 300)
         })
 
-        df["strength"] = (150 / ((df["water"]/df["cement"]) * 5)) + 0.3 * df["age"]
+        # engineering-inspired strength formula
+        df["strength"] = (
+            (0.5 * df["cement"]) / (df["water"] + 1)
+            + 0.2 * df["age"]
+            + 0.3 * df["fly_ash"]
+            + 0.8 * df["silica_fume"]
+        )
 
-        X = df[["cement", "water", "age"]]
+        # =========================
+        # ML MODEL
+        # =========================
+        X = df[["cement", "water", "age", "fly_ash", "silica_fume"]]
         y = df["strength"]
 
-        model = RandomForestRegressor()
+        model = RandomForestRegressor(
+            n_estimators=300,
+            max_depth=12,
+            random_state=42
+        )
+
         model.fit(X, y)
 
-        pred = model.predict(X)
-        error = np.mean(np.abs(y - pred))
+        # prediction
+        input_data = np.array([[cement, water, age, fly_ash, silica_fume]])
+        pred = model.predict(input_data)[0]
 
-        st.metric("Model Error", round(error, 4))
-        st.dataframe(df.head())
+        st.subheader("📊 Prediction Result")
+        st.success(f"Predicted Concrete Strength: {pred:.2f}")
 
-        # SAVE
+        # =========================
+        # RESEARCH INSIGHT
+        # =========================
+        st.subheader("📌 Research Insight")
+
+        if pred > 40:
+            st.info("High-strength concrete suitable for high-rise structures 🏢")
+        elif pred > 25:
+            st.warning("Medium strength — suitable for general construction")
+        else:
+            st.error("Low strength — adjust mix design")
+
+        # =========================
+        # ERROR METRIC
+        # =========================
+        pred_train = model.predict(X)
+        error = np.mean(np.abs(y - pred_train))
+
+        st.metric("Model Error (MAE)", round(error, 4))
+
+        # =========================
+        # SAVE PROJECT
+        # =========================
+        result = f"Pred:{pred:.2f} | MAE:{error:.2f}"
+
         c.execute(
             "INSERT INTO projects (username, idea, result) VALUES (?,?,?)",
-            (st.session_state["user"], idea, str(error))
+            (st.session_state["user"], idea, result)
         )
         conn.commit()
+
+        st.success("Project saved successfully!")
+
+        # =========================
+        # DATA PREVIEW
+        # =========================
+        st.subheader("📊 Dataset Preview")
+        st.dataframe(df.head())
 
 # =========================
 # ANALYTICS
@@ -158,7 +226,7 @@ if menu == "Analytics":
         st.warning("Login required")
         st.stop()
 
-    st.subheader("Your Analytics")
+    st.subheader("📊 User Analytics")
 
     c.execute("SELECT idea FROM projects WHERE username=?", (st.session_state["user"],))
     data = c.fetchall()
@@ -166,4 +234,5 @@ if menu == "Analytics":
     st.metric("Total Projects", len(data))
 
     lengths = [len(i[0]) for i in data] if data else [0]
+
     st.line_chart(lengths)
